@@ -1,0 +1,71 @@
+{
+  "albums": [
+    {
+      "id": "spicy-1",
+      "title": "Summer Vibes",
+      "category": "Spicy",
+      "price": 30,
+      "coverImage": "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&q=80&w=800",
+      "code": "1234",
+      "photos": [
+        { "id": "sv-1", "url": "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "sv-2", "url": "https://images.unsplash.com/photo-1506744626753-1fa28f67d484?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "sv-3", "url": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "sv-4", "url": "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "sv-5", "url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "sv-6", "url": "https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?auto=format&fit=crop&q=80&w=1200" }
+      ]
+    },
+    {
+      "id": "spicy-unlimited-1",
+      "title": "Neon Nights",
+      "category": "Spicy Unlimited",
+      "price": 40,
+      "coverImage": "https://images.unsplash.com/photo-1551022372-0bdac482b979?auto=format&fit=crop&q=80&w=800",
+      "code": "5678",
+      "photos": [
+        { "id": "nn-1", "url": "https://images.unsplash.com/photo-1551022372-0bdac482b979?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "nn-2", "url": "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "nn-3", "url": "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "nn-4", "url": "https://images.unsplash.com/photo-1524503033411-c9566986fc8f?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "nn-5", "url": "https://images.unsplash.com/photo-1488161628813-04466f872528?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "nn-6", "url": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "nn-7", "url": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=1200" }
+      ]
+    },
+    {
+      "id": "spicy-2",
+      "title": "Golden Hour",
+      "category": "Spicy",
+      "price": 30,
+      "coverImage": "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&q=80&w=800",
+      "code": "4321",
+      "photos": [
+        { "id": "gh-1", "url": "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "gh-2", "url": "https://images.unsplash.com/photo-1464863979621-258859e62245?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "gh-3", "url": "https://images.unsplash.com/photo-1520155707862-5b3281538846?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "gh-4", "url": "https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "gh-5", "url": "https://images.unsplash.com/photo-1509967419530-da38b4704bc6?auto=format&fit=crop&q=80&w=1200" }
+      ]
+    },
+    {
+      "id": "spicy-unlimited-2",
+      "title": "Velvet Dreams",
+      "category": "Spicy Unlimited",
+      "price": 40,
+      "coverImage": "https://images.unsplash.com/photo-1492106087820-71f1a00d2b11?auto=format&fit=crop&q=80&w=800",
+      "code": "8765",
+      "photos": [
+        { "id": "vd-1", "url": "https://images.unsplash.com/photo-1492106087820-71f1a00d2b11?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "vd-2", "url": "https://images.unsplash.com/photo-1514315384763-ba401779410f?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "vd-3", "url": "https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "vd-4", "url": "https://images.unsplash.com/photo-1518577915332-c2a19f149a75?auto=format&fit=crop&q=80&w=1200" },
+        { "id": "vd-5", "url": "https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?auto=format&fit=crop&q=80&w=1200" }
+      ]
+    }
+  ],
+  "settings": {
+    "donationEmail": "yasanjithmalindu@gmail.com"
+  },
+  "categories": ["Spicy", "Spicy Unlimited"]
+}

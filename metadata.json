@@ -1,0 +1,6 @@
+{
+  "name": "Kawshi Sasandi Gallery",
+  "description": "Exclusive photo albums by Kawshi Sasandi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
