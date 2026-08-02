@@ -63,14 +63,11 @@ const uploadBuffer = async (buffer: Buffer, mimetype: string): Promise<string> =
       Readable.from(buffer).pipe(uploadStream);
     });
   } else {
-    if (process.env.VERCEL) {
-      throw new Error("CLOUDINARY_URL secret is required for file uploads on Vercel.");
-    }
     // Local fallback
     const ext = mimetype.split('/')[1] || 'bin';
     const filename = `${uuidv4()}.${ext.replace('+', '')}`;
-    const uploadsDir = localUploadsDir;
-    if (!fs.existsSync(uploadsDir)) {
+    const uploadsDir = process.env.VERCEL ? "/tmp/uploads" : localUploadsDir;
+    if (process.env.VERCEL && !fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
     const filePath = path.join(uploadsDir, filename);
@@ -79,71 +76,40 @@ const uploadBuffer = async (buffer: Buffer, mimetype: string): Promise<string> =
   }
 };
 
-let cached = (global as any).mongoose;
-if (!cached) {
-  cached = (global as any).mongoose = { conn: null, promise: null };
-}
-
+let isConnected = false;
 async function connectDB() {
+  if (isConnected) return;
+  mongoose.set('bufferCommands', false);
   const uri = process.env.MONGO_URI;
   if (!uri) {
     console.warn("MONGO_URI not set.");
     return;
   }
-  
-  if (cached.conn && mongoose.connection.readyState === 1) {
-    return cached.conn;
-  }
-
-  if (!cached.promise || mongoose.connection.readyState !== 1) {
-    mongoose.set('bufferCommands', false);
-    cached.promise = mongoose.connect(uri, { serverSelectionTimeoutMS: 5000, socketTimeoutMS: 45000 }).then((mongooseInstance) => {
-      console.log("Connected to MongoDB successfully");
-      return mongooseInstance;
-    }).catch(err => {
-      cached.promise = null;
-      throw err;
-    });
-  }
-  
   try {
-    cached.conn = await cached.promise;
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+    isConnected = true;
+    console.log("Connected to MongoDB successfully");
     
-    // Initialize default settings if none exist
-    try {
-      const settingsCount = await SettingsModel.countDocuments();
-      if (settingsCount === 0) {
-        await SettingsModel.create({
-          donationEmail: "yasanjithmalindu@gmail.com",
-          categories: ["Spicy", "Spicy Unlimited"]
-        });
-      }
-    } catch (err) {
-      console.error("Error seeding default settings:", err);
+    const settingsCount = await SettingsModel.countDocuments();
+    if (settingsCount === 0) {
+      await SettingsModel.create({
+        donationEmail: "yasanjithmalindu@gmail.com",
+        categories: ["Spicy", "Spicy Unlimited"]
+      });
     }
-    
-  } catch (e) {
-    cached.promise = null;
-    console.error("MongoDB connection error:", e);
-    throw e;
+  } catch (error) {
+    console.error("MongoDB connection error:", error);
   }
-  return cached.conn;
 }
 
 // Connect DB on every request in serverless
 app.use(async (req, res, next) => {
-  try {
-    if (process.env.MONGO_URI) {
-      await connectDB();
-    }
-    next();
-  } catch (error) {
-    res.status(503).json({ error: "Database Connection Error. The server is currently unavailable." });
-  }
+  await connectDB();
+  next();
 });
 
 const checkDB = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (mongoose.connection.readyState !== 1 && mongoose.connection.readyState !== 2) {
+  if (mongoose.connection.readyState !== 1) {
     return res.status(503).json({ error: "MongoDB not connected. Please set MONGO_URI in Secrets." });
   }
   next();
@@ -279,9 +245,9 @@ router.post("/albums/:id/photos", upload.single("file"), checkDB, async (req, re
     } else {
       res.status(404).json({ error: "Album not found" });
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error(error);
-    res.status(500).json({ error: error.message || "Database error" });
+    res.status(500).json({ error: "Database error" });
   }
 });
 
@@ -313,9 +279,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const fileUrl = await uploadBuffer(req.file.buffer, req.file.mimetype);
     res.json({ url: fileUrl });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Upload error:", error);
-    res.status(500).json({ error: error.message || "Failed to upload file" });
+    res.status(500).json({ error: "Failed to upload file" });
   }
 });
 
