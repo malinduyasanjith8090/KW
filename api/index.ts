@@ -5,6 +5,8 @@ import { v4 as uuidv4 } from "uuid";
 import cors from "cors";
 import mongoose from "mongoose";
 import fs from "fs";
+import { v2 as cloudinary } from "cloudinary";
+import { Readable } from "stream";
 
 // --- MongoDB Models ---
 const settingsSchema = new mongoose.Schema({
@@ -35,24 +37,44 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// For Vercel Serverless, use /tmp for uploads. Note: files are not persistent across serverless invocations.
-const uploadsDir = process.env.VERCEL ? "/tmp/uploads" : path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Ensure local uploads directory exists for fallback
+const localUploadsDir = path.join(process.cwd(), "uploads");
+if (!process.env.VERCEL && !fs.existsSync(localUploadsDir)) {
+  fs.mkdirSync(localUploadsDir, { recursive: true });
+}
+app.use("/uploads", express.static(localUploadsDir));
+if (process.env.VERCEL) {
+  app.use("/uploads", express.static("/tmp/uploads"));
 }
 
-app.use("/uploads", express.static(uploadsDir));
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB limit
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir);
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    cb(null, `${uuidv4()}${ext}`);
+const uploadBuffer = async (buffer: Buffer, mimetype: string): Promise<string> => {
+  if (process.env.CLOUDINARY_URL) {
+    const resourceType = mimetype.startsWith("video/") ? "video" : "image";
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { resource_type: resourceType, folder: "gallery" },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result!.secure_url);
+        }
+      );
+      Readable.from(buffer).pipe(uploadStream);
+    });
+  } else {
+    // Local fallback
+    const ext = mimetype.split('/')[1] || 'bin';
+    const filename = `${uuidv4()}.${ext.replace('+', '')}`;
+    const uploadsDir = process.env.VERCEL ? "/tmp/uploads" : localUploadsDir;
+    if (process.env.VERCEL && !fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const filePath = path.join(uploadsDir, filename);
+    fs.writeFileSync(filePath, buffer);
+    return `/uploads/${filename}`;
   }
-});
-const upload = multer({ storage: storage });
+};
 
 let isConnected = false;
 async function connectDB() {
@@ -96,8 +118,8 @@ const checkDB = (req: express.Request, res: express.Response, next: express.Next
 // Get all data
 app.get("/api/data", checkDB, async (req, res) => {
   try {
-    const albums = await AlbumModel.find({}, { _id: 0, __v: 0 }).lean();
-    let settingsDoc = await SettingsModel.findOne().lean();
+    const albums = await AlbumModel.find({} as any, { _id: 0, __v: 0 }).lean();
+    let settingsDoc = await SettingsModel.findOne({} as any).lean();
     
     const donationEmail = settingsDoc?.donationEmail || "";
     const categories = settingsDoc?.categories || [];
@@ -116,7 +138,7 @@ app.get("/api/data", checkDB, async (req, res) => {
 // Update settings and categories
 app.put("/api/settings", checkDB, async (req, res) => {
   try {
-    let settingsDoc = await SettingsModel.findOne();
+    let settingsDoc = await SettingsModel.findOne({} as any);
     if (!settingsDoc) {
       settingsDoc = new SettingsModel();
     }
@@ -152,7 +174,7 @@ app.post("/api/albums", checkDB, async (req, res) => {
     });
     await newAlbum.save();
     
-    const savedAlbum = await AlbumModel.findOne({ id: newAlbum.id }, { _id: 0, __v: 0 }).lean();
+    const savedAlbum = await AlbumModel.findOne({ id: newAlbum.id } as any, { _id: 0, __v: 0 }).lean();
     res.json(savedAlbum);
   } catch (error) {
     console.error(error);
@@ -164,7 +186,7 @@ app.post("/api/albums", checkDB, async (req, res) => {
 app.put("/api/albums/:id", checkDB, async (req, res) => {
   try {
     const updatedAlbum = await AlbumModel.findOneAndUpdate(
-      { id: req.params.id },
+      { id: req.params.id } as any,
       { $set: req.body },
       { new: true, projection: { _id: 0, __v: 0 } }
     ).lean();
@@ -183,7 +205,7 @@ app.put("/api/albums/:id", checkDB, async (req, res) => {
 // Delete Album
 app.delete("/api/albums/:id", checkDB, async (req, res) => {
   try {
-    const result = await AlbumModel.deleteOne({ id: req.params.id });
+    const result = await AlbumModel.deleteOne({ id: req.params.id } as any);
     if (result.deletedCount > 0) {
       res.json({ success: true });
     } else {
@@ -202,14 +224,16 @@ app.post("/api/albums/:id/photos", upload.single("file"), checkDB, async (req, r
   }
   
   try {
+    const fileUrl = await uploadBuffer(req.file.buffer, req.file.mimetype);
+    
     const newPhoto = {
       id: uuidv4(),
-      url: `/uploads/${req.file.filename}`,
+      url: fileUrl,
       type: req.file.mimetype.startsWith('video/') ? 'video' : 'image'
     };
     
     const updatedAlbum = await AlbumModel.findOneAndUpdate(
-      { id: req.params.id },
+      { id: req.params.id } as any,
       { $push: { photos: newPhoto } },
       { new: true }
     );
@@ -229,7 +253,7 @@ app.post("/api/albums/:id/photos", upload.single("file"), checkDB, async (req, r
 app.delete("/api/albums/:id/photos/:photoId", checkDB, async (req, res) => {
   try {
     const updatedAlbum = await AlbumModel.findOneAndUpdate(
-      { id: req.params.id },
+      { id: req.params.id } as any,
       { $pull: { photos: { id: req.params.photoId } } },
       { new: true }
     );
@@ -246,11 +270,17 @@ app.delete("/api/albums/:id/photos/:photoId", checkDB, async (req, res) => {
 });
 
 // General File Upload (for cover image etc)
-app.post("/api/upload", upload.single("file"), (req, res) => {
+app.post("/api/upload", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded" });
   }
-  res.json({ url: `/uploads/${req.file.filename}` });
+  try {
+    const fileUrl = await uploadBuffer(req.file.buffer, req.file.mimetype);
+    res.json({ url: fileUrl });
+  } catch (error) {
+    console.error("Upload error:", error);
+    res.status(500).json({ error: "Failed to upload file" });
+  }
 });
 
 export default app;
