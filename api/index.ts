@@ -115,10 +115,8 @@ const checkDB = (req: express.Request, res: express.Response, next: express.Next
   next();
 };
 
-const router = express.Router();
-
 // Get all data
-router.get("/data", checkDB, async (req, res) => {
+app.get("/api/data", checkDB, async (req, res) => {
   try {
     const albums = await AlbumModel.find({} as any, { _id: 0, __v: 0 }).lean();
     let settingsDoc = await SettingsModel.findOne({} as any).lean();
@@ -138,7 +136,7 @@ router.get("/data", checkDB, async (req, res) => {
 });
 
 // Update settings and categories
-router.put("/settings", checkDB, async (req, res) => {
+app.put("/api/settings", checkDB, async (req, res) => {
   try {
     let settingsDoc = await SettingsModel.findOne({} as any);
     if (!settingsDoc) {
@@ -163,7 +161,7 @@ router.put("/settings", checkDB, async (req, res) => {
 });
 
 // Create Album
-router.post("/albums", checkDB, async (req, res) => {
+app.post("/api/albums", checkDB, async (req, res) => {
   try {
     const newAlbum = new AlbumModel({
       id: uuidv4(),
@@ -185,7 +183,7 @@ router.post("/albums", checkDB, async (req, res) => {
 });
 
 // Update Album
-router.put("/albums/:id", checkDB, async (req, res) => {
+app.put("/api/albums/:id", checkDB, async (req, res) => {
   try {
     const updatedAlbum = await AlbumModel.findOneAndUpdate(
       { id: req.params.id } as any,
@@ -205,7 +203,7 @@ router.put("/albums/:id", checkDB, async (req, res) => {
 });
 
 // Delete Album
-router.delete("/albums/:id", checkDB, async (req, res) => {
+app.delete("/api/albums/:id", checkDB, async (req, res) => {
   try {
     const result = await AlbumModel.deleteOne({ id: req.params.id } as any);
     if (result.deletedCount > 0) {
@@ -220,7 +218,7 @@ router.delete("/albums/:id", checkDB, async (req, res) => {
 });
 
 // Add Photo to Album
-router.post("/albums/:id/photos", upload.single("file"), checkDB, async (req, res) => {
+app.post("/api/albums/:id/photos", upload.single("file"), checkDB, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded" });
   }
@@ -252,7 +250,7 @@ router.post("/albums/:id/photos", upload.single("file"), checkDB, async (req, re
 });
 
 // Delete Photo
-router.delete("/albums/:id/photos/:photoId", checkDB, async (req, res) => {
+app.delete("/api/albums/:id/photos/:photoId", checkDB, async (req, res) => {
   try {
     const updatedAlbum = await AlbumModel.findOneAndUpdate(
       { id: req.params.id } as any,
@@ -272,7 +270,7 @@ router.delete("/albums/:id/photos/:photoId", checkDB, async (req, res) => {
 });
 
 // General File Upload (for cover image etc)
-router.post("/upload", upload.single("file"), async (req, res) => {
+app.post("/api/upload", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded" });
   }
@@ -284,9 +282,5 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     res.status(500).json({ error: "Failed to upload file" });
   }
 });
-
-app.use("/api", router);
-// Also mount at root in case Vercel strips /api
-app.use("/", router);
 
 export default app;
