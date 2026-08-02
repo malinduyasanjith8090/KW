@@ -76,36 +76,64 @@ const uploadBuffer = async (buffer: Buffer, mimetype: string): Promise<string> =
   }
 };
 
-let isConnected = false;
+let cached = (global as any).mongoose;
+if (!cached) {
+  cached = (global as any).mongoose = { conn: null, promise: null };
+}
+
 async function connectDB() {
-  if (isConnected) return;
-  mongoose.set('bufferCommands', false);
   const uri = process.env.MONGO_URI;
   if (!uri) {
     console.warn("MONGO_URI not set.");
     return;
   }
-  try {
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
-    isConnected = true;
-    console.log("Connected to MongoDB successfully");
-    
-    const settingsCount = await SettingsModel.countDocuments();
-    if (settingsCount === 0) {
-      await SettingsModel.create({
-        donationEmail: "yasanjithmalindu@gmail.com",
-        categories: ["Spicy", "Spicy Unlimited"]
-      });
-    }
-  } catch (error) {
-    console.error("MongoDB connection error:", error);
+  
+  if (cached.conn) {
+    return cached.conn;
   }
+
+  if (!cached.promise) {
+    mongoose.set('bufferCommands', false);
+    cached.promise = mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 }).then((mongoose) => {
+      console.log("Connected to MongoDB successfully");
+      return mongoose;
+    });
+  }
+  
+  try {
+    cached.conn = await cached.promise;
+    
+    // Initialize default settings if none exist
+    try {
+      const settingsCount = await SettingsModel.countDocuments();
+      if (settingsCount === 0) {
+        await SettingsModel.create({
+          donationEmail: "yasanjithmalindu@gmail.com",
+          categories: ["Spicy", "Spicy Unlimited"]
+        });
+      }
+    } catch (err) {
+      console.error("Error seeding default settings:", err);
+    }
+    
+  } catch (e) {
+    cached.promise = null;
+    console.error("MongoDB connection error:", e);
+    throw e;
+  }
+  return cached.conn;
 }
 
 // Connect DB on every request in serverless
 app.use(async (req, res, next) => {
-  await connectDB();
-  next();
+  try {
+    if (process.env.MONGO_URI) {
+      await connectDB();
+    }
+    next();
+  } catch (error) {
+    res.status(503).json({ error: "Database Connection Error. The server is currently unavailable." });
+  }
 });
 
 const checkDB = (req: express.Request, res: express.Response, next: express.NextFunction) => {
