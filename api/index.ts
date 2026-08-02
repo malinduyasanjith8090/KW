@@ -63,11 +63,14 @@ const uploadBuffer = async (buffer: Buffer, mimetype: string): Promise<string> =
       Readable.from(buffer).pipe(uploadStream);
     });
   } else {
+    if (process.env.VERCEL) {
+      throw new Error("CLOUDINARY_URL secret is required for file uploads on Vercel.");
+    }
     // Local fallback
     const ext = mimetype.split('/')[1] || 'bin';
     const filename = `${uuidv4()}.${ext.replace('+', '')}`;
-    const uploadsDir = process.env.VERCEL ? "/tmp/uploads" : localUploadsDir;
-    if (process.env.VERCEL && !fs.existsSync(uploadsDir)) {
+    const uploadsDir = localUploadsDir;
+    if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
     const filePath = path.join(uploadsDir, filename);
@@ -88,15 +91,18 @@ async function connectDB() {
     return;
   }
   
-  if (cached.conn) {
+  if (cached.conn && mongoose.connection.readyState === 1) {
     return cached.conn;
   }
 
-  if (!cached.promise) {
+  if (!cached.promise || mongoose.connection.readyState !== 1) {
     mongoose.set('bufferCommands', false);
-    cached.promise = mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 }).then((mongoose) => {
+    cached.promise = mongoose.connect(uri, { serverSelectionTimeoutMS: 5000, socketTimeoutMS: 45000 }).then((mongooseInstance) => {
       console.log("Connected to MongoDB successfully");
-      return mongoose;
+      return mongooseInstance;
+    }).catch(err => {
+      cached.promise = null;
+      throw err;
     });
   }
   
@@ -137,7 +143,7 @@ app.use(async (req, res, next) => {
 });
 
 const checkDB = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (mongoose.connection.readyState !== 1) {
+  if (mongoose.connection.readyState !== 1 && mongoose.connection.readyState !== 2) {
     return res.status(503).json({ error: "MongoDB not connected. Please set MONGO_URI in Secrets." });
   }
   next();
@@ -273,9 +279,9 @@ router.post("/albums/:id/photos", upload.single("file"), checkDB, async (req, re
     } else {
       res.status(404).json({ error: "Album not found" });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
-    res.status(500).json({ error: "Database error" });
+    res.status(500).json({ error: error.message || "Database error" });
   }
 });
 
@@ -307,9 +313,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const fileUrl = await uploadBuffer(req.file.buffer, req.file.mimetype);
     res.json({ url: fileUrl });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Upload error:", error);
-    res.status(500).json({ error: "Failed to upload file" });
+    res.status(500).json({ error: error.message || "Failed to upload file" });
   }
 });
 
