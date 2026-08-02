@@ -50,7 +50,25 @@ if (process.env.VERCEL) {
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB limit
 
 const uploadBuffer = async (buffer: Buffer, mimetype: string): Promise<string> => {
-  if (process.env.CLOUDINARY_URL) {
+  if (process.env.IMGBB_API_KEY) {
+    if (mimetype.startsWith("video/")) {
+      throw new Error("ImgBB only supports images, not videos. Please use Cloudinary for video support.");
+    }
+    const formData = new FormData();
+    const blob = new Blob([buffer], { type: mimetype });
+    formData.append("image", blob, "upload.jpg");
+    
+    const response = await fetch(`https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json();
+    if (data.success) {
+      return data.data.url;
+    } else {
+      throw new Error("ImgBB upload failed: " + (data.error?.message || "Unknown error"));
+    }
+  } else if (process.env.CLOUDINARY_URL) {
     const resourceType = mimetype.startsWith("video/") ? "video" : "image";
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
@@ -63,11 +81,14 @@ const uploadBuffer = async (buffer: Buffer, mimetype: string): Promise<string> =
       Readable.from(buffer).pipe(uploadStream);
     });
   } else {
+    if (process.env.VERCEL) {
+      throw new Error("IMGBB_API_KEY or CLOUDINARY_URL secret is required for file uploads on Vercel.");
+    }
     // Local fallback
     const ext = mimetype.split('/')[1] || 'bin';
     const filename = `${uuidv4()}.${ext.replace('+', '')}`;
-    const uploadsDir = process.env.VERCEL ? "/tmp/uploads" : localUploadsDir;
-    if (process.env.VERCEL && !fs.existsSync(uploadsDir)) {
+    const uploadsDir = localUploadsDir;
+    if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
     const filePath = path.join(uploadsDir, filename);
@@ -76,47 +97,80 @@ const uploadBuffer = async (buffer: Buffer, mimetype: string): Promise<string> =
   }
 };
 
-let isConnected = false;
+let cached = (global as any).mongoose;
+if (!cached) {
+  cached = (global as any).mongoose = { conn: null, promise: null };
+}
+
 async function connectDB() {
-  if (isConnected) return;
-  mongoose.set('bufferCommands', false);
   const uri = process.env.MONGO_URI;
   if (!uri) {
     console.warn("MONGO_URI not set.");
     return;
   }
-  try {
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
-    isConnected = true;
-    console.log("Connected to MongoDB successfully");
-    
-    const settingsCount = await SettingsModel.countDocuments();
-    if (settingsCount === 0) {
-      await SettingsModel.create({
-        donationEmail: "yasanjithmalindu@gmail.com",
-        categories: ["Spicy", "Spicy Unlimited"]
-      });
-    }
-  } catch (error) {
-    console.error("MongoDB connection error:", error);
+  
+  if (cached.conn && mongoose.connection.readyState === 1) {
+    return cached.conn;
   }
+
+  if (!cached.promise) {
+    mongoose.set('bufferCommands', false);
+    cached.promise = mongoose.connect(uri, { serverSelectionTimeoutMS: 5000, socketTimeoutMS: 45000 }).then((mongooseInstance) => {
+      console.log("Connected to MongoDB successfully");
+      return mongooseInstance;
+    }).catch(err => {
+      cached.promise = null;
+      throw err;
+    });
+  }
+  
+  try {
+    cached.conn = await cached.promise;
+    
+    // Initialize default settings if none exist
+    try {
+      const settingsCount = await SettingsModel.countDocuments();
+      if (settingsCount === 0) {
+        await SettingsModel.create({
+          donationEmail: "yasanjithmalindu@gmail.com",
+          categories: ["Spicy", "Spicy Unlimited"]
+        });
+      }
+    } catch (err) {
+      console.error("Error seeding default settings:", err);
+    }
+    
+  } catch (e) {
+    cached.promise = null;
+    console.error("MongoDB connection error:", e);
+    throw e;
+  }
+  return cached.conn;
 }
 
 // Connect DB on every request in serverless
 app.use(async (req, res, next) => {
-  await connectDB();
-  next();
+  try {
+    if (process.env.MONGO_URI) {
+      await connectDB();
+    }
+    next();
+  } catch (error) {
+    res.status(503).json({ error: "Database Connection Error. The server is currently unavailable." });
+  }
 });
 
 const checkDB = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (mongoose.connection.readyState !== 1) {
+  if (mongoose.connection.readyState !== 1 && mongoose.connection.readyState !== 2) {
     return res.status(503).json({ error: "MongoDB not connected. Please set MONGO_URI in Secrets." });
   }
   next();
 };
 
+const router = express.Router();
+
 // Get all data
-app.get("/api/data", checkDB, async (req, res) => {
+router.get("/data", checkDB, async (req, res) => {
   try {
     const albums = await AlbumModel.find({} as any, { _id: 0, __v: 0 }).lean();
     let settingsDoc = await SettingsModel.findOne({} as any).lean();
@@ -136,7 +190,7 @@ app.get("/api/data", checkDB, async (req, res) => {
 });
 
 // Update settings and categories
-app.put("/api/settings", checkDB, async (req, res) => {
+router.put("/settings", checkDB, async (req, res) => {
   try {
     let settingsDoc = await SettingsModel.findOne({} as any);
     if (!settingsDoc) {
@@ -161,7 +215,7 @@ app.put("/api/settings", checkDB, async (req, res) => {
 });
 
 // Create Album
-app.post("/api/albums", checkDB, async (req, res) => {
+router.post("/albums", checkDB, async (req, res) => {
   try {
     const newAlbum = new AlbumModel({
       id: uuidv4(),
@@ -183,7 +237,7 @@ app.post("/api/albums", checkDB, async (req, res) => {
 });
 
 // Update Album
-app.put("/api/albums/:id", checkDB, async (req, res) => {
+router.put("/albums/:id", checkDB, async (req, res) => {
   try {
     const updatedAlbum = await AlbumModel.findOneAndUpdate(
       { id: req.params.id } as any,
@@ -203,7 +257,7 @@ app.put("/api/albums/:id", checkDB, async (req, res) => {
 });
 
 // Delete Album
-app.delete("/api/albums/:id", checkDB, async (req, res) => {
+router.delete("/albums/:id", checkDB, async (req, res) => {
   try {
     const result = await AlbumModel.deleteOne({ id: req.params.id } as any);
     if (result.deletedCount > 0) {
@@ -218,7 +272,7 @@ app.delete("/api/albums/:id", checkDB, async (req, res) => {
 });
 
 // Add Photo to Album
-app.post("/api/albums/:id/photos", upload.single("file"), checkDB, async (req, res) => {
+router.post("/albums/:id/photos", upload.single("file"), checkDB, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded" });
   }
@@ -243,14 +297,14 @@ app.post("/api/albums/:id/photos", upload.single("file"), checkDB, async (req, r
     } else {
       res.status(404).json({ error: "Album not found" });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
-    res.status(500).json({ error: "Database error" });
+    res.status(500).json({ error: error.message || "Database error" });
   }
 });
 
 // Delete Photo
-app.delete("/api/albums/:id/photos/:photoId", checkDB, async (req, res) => {
+router.delete("/albums/:id/photos/:photoId", checkDB, async (req, res) => {
   try {
     const updatedAlbum = await AlbumModel.findOneAndUpdate(
       { id: req.params.id } as any,
@@ -270,17 +324,21 @@ app.delete("/api/albums/:id/photos/:photoId", checkDB, async (req, res) => {
 });
 
 // General File Upload (for cover image etc)
-app.post("/api/upload", upload.single("file"), async (req, res) => {
+router.post("/upload", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded" });
   }
   try {
     const fileUrl = await uploadBuffer(req.file.buffer, req.file.mimetype);
     res.json({ url: fileUrl });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Upload error:", error);
-    res.status(500).json({ error: "Failed to upload file" });
+    res.status(500).json({ error: error.message || "Failed to upload file" });
   }
 });
+
+app.use("/api", router);
+// Also mount at root in case Vercel strips /api
+app.use("/", router);
 
 export default app;
