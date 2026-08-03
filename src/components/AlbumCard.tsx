@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Lock } from 'lucide-react';
+import { Lock, Images } from 'lucide-react';
 import { Album } from '../types';
 
 interface AlbumCardProps {
@@ -42,11 +42,17 @@ export function AlbumCard({ album, onClick, isUnlocked }: AlbumCardProps) {
       <div className="absolute bottom-0 left-0 right-0 p-6 z-20 text-white">
         <div className="flex justify-between items-end">
           <div>
-            <span className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-sm mb-2 inline-block ${
-              album.category === 'Spicy' ? 'bg-orange-500/80 text-white' : 'bg-rose-600/80 text-white'
-            }`}>
-              {album.category}
-            </span>
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-sm inline-block ${
+                album.category === 'Spicy' ? 'bg-orange-500/80 text-white' : 'bg-rose-600/80 text-white'
+              }`}>
+                {album.category}
+              </span>
+              <span className="flex items-center gap-1 text-sm font-medium text-white/90 bg-black/40 px-2 py-1 rounded-sm backdrop-blur-md">
+                <Images className="w-3.5 h-3.5" />
+                {album.photos?.length || 0}
+              </span>
+            </div>
             <h3 className="text-2xl font-serif font-medium leading-tight">{album.title}</h3>
           </div>
           <div className="bg-white/20 backdrop-blur-md border border-white/40 px-3 py-1.5 rounded-lg text-lg font-bold">
