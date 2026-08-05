@@ -1,11 +1,57 @@
+import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, PlayCircle } from 'lucide-react';
+import { ArrowLeft, PlayCircle, Loader2 } from 'lucide-react';
 import { Album, Photo } from '../types';
 
 interface AlbumViewProps {
   album: Album;
   onBack: () => void;
   onPhotoClick: (photo: Photo) => void;
+}
+
+function ProgressiveMedia({ photo, alt }: { photo: Photo, alt: string }) {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  return (
+    <div 
+      className="relative w-full h-full min-h-[200px] bg-gray-100 flex items-center justify-center overflow-hidden rounded-2xl"
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {!isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
+        </div>
+      )}
+      {photo.type === 'video' ? (
+        <>
+          <video 
+            src={photo.url || undefined} 
+            className={`w-full h-auto object-cover group-hover:scale-105 transition-all duration-700 pointer-events-none select-none ${isLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-md'}`}
+            muted
+            loop
+            controlsList="nodownload"
+            onLoadedData={() => setIsLoaded(true)}
+            onMouseEnter={(e) => e.currentTarget.play()}
+            onMouseLeave={(e) => e.currentTarget.pause()}
+          />
+          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+            <PlayCircle className="w-12 h-12 text-white/70 group-hover:text-white transition-colors" />
+          </div>
+        </>
+      ) : (
+        <img 
+          src={photo.url || undefined} 
+          alt={alt} 
+          className={`w-full h-auto object-cover group-hover:scale-105 transition-all duration-700 pointer-events-none select-none ${isLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-md'}`}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onLoad={() => setIsLoaded(true)}
+          style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+        />
+      )}
+    </div>
+  );
 }
 
 export function AlbumView({ album, onBack, onPhotoClick }: AlbumViewProps) {
@@ -48,29 +94,8 @@ export function AlbumView({ album, onBack, onPhotoClick }: AlbumViewProps) {
             className="break-inside-avoid cursor-pointer group relative rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow"
             onClick={() => onPhotoClick(photo)}
           >
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors z-10" />
-            {photo.type === 'video' ? (
-              <>
-                <video 
-                  src={photo.url || undefined} 
-                  className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
-                  muted
-                  loop
-                  onMouseEnter={(e) => e.currentTarget.play()}
-                  onMouseLeave={(e) => e.currentTarget.pause()}
-                />
-                <div className="absolute inset-0 z-20 flex items-center justify-center">
-                  <PlayCircle className="w-12 h-12 text-white/70 group-hover:text-white transition-colors" />
-                </div>
-              </>
-            ) : (
-              <img 
-                src={photo.url || undefined} 
-                alt={`${album.title} ${index + 1}`} 
-                className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500"
-                loading="lazy"
-              />
-            )}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors z-10 pointer-events-none" />
+            <ProgressiveMedia photo={photo} alt={`${album.title} ${index + 1}`} />
           </motion.div>
         ))}
       </div>
