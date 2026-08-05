@@ -115,7 +115,7 @@ function Gallery() {
                   Explore my private galleries. Select an album and enter your access code to view the full collection.
                 </p>
                 <div className="absolute right-0 top-0">
-                  <Link to="/admin" className="text-xs text-gray-400 hover:text-gray-600">Admin Login</Link>
+                  <Link to="/admin" className="text-xs text-gray-400 hover:text-gray-600"></Link>
                 </div>
               </div>
 
