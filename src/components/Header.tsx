@@ -24,17 +24,24 @@ export function Header({ donationEmail = "yasanjithmalindu@gmail.com" }: HeaderP
       <motion.div
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
-        className="flex items-center"
+        className="flex flex-col gap-2 items-center md:items-end"
       >
-        <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-2 rounded-full flex items-center gap-2 shadow-sm">
-          <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
-          <span className="text-sm font-medium">Donate to me with PayPal:</span>
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-sm text-sm">
+          <Heart className="w-4 h-4 text-rose-500 fill-rose-500 shrink-0" />
+          <span className="font-medium whitespace-nowrap">Donate to me with PayPal:</span>
           <a 
             href={`mailto:${donationEmail}`} 
-            className="text-sm font-bold hover:text-rose-600 transition-colors underline decoration-rose-300 underline-offset-2"
+            className="font-bold hover:text-rose-600 transition-colors underline decoration-rose-300 underline-offset-2 truncate"
           >
             {donationEmail}
           </a>
+        </div>
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-sm text-sm">
+          <Heart className="w-4 h-4 text-rose-500 fill-rose-500 shrink-0" />
+          <span className="font-medium whitespace-nowrap">Donate to me with Crypto:</span>
+          <span className="font-bold truncate select-all">
+            TNhU6Hz9XCfLgAXzN1YZ7R8Zr9CQ1ijaCX
+          </span>
         </div>
       </motion.div>
     </header>
