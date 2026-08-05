@@ -24,22 +24,26 @@ export function Header({ donationEmail = "yasanjithmalindu@gmail.com" }: HeaderP
       <motion.div
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
-        className="flex flex-col gap-2 items-center md:items-end"
+        className="flex flex-col gap-2 items-center md:items-end w-full md:w-auto max-w-full"
       >
-        <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-sm text-sm">
-          <Heart className="w-4 h-4 text-rose-500 fill-rose-500 shrink-0" />
-          <span className="font-medium whitespace-nowrap">Donate to me with PayPal:</span>
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-2 rounded-2xl md:rounded-full flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 shadow-sm text-sm w-full md:w-auto max-w-full">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
+            <span className="font-medium whitespace-nowrap">Donate with PayPal:</span>
+          </div>
           <a 
             href={`mailto:${donationEmail}`} 
-            className="font-bold hover:text-rose-600 transition-colors underline decoration-rose-300 underline-offset-2 truncate"
+            className="font-bold hover:text-rose-600 transition-colors underline decoration-rose-300 underline-offset-2 break-all text-center"
           >
             {donationEmail}
           </a>
         </div>
-        <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-sm text-sm">
-          <Heart className="w-4 h-4 text-rose-500 fill-rose-500 shrink-0" />
-          <span className="font-medium whitespace-nowrap">Donate to me with Crypto:</span>
-          <span className="font-bold truncate select-all">
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-2 rounded-2xl md:rounded-full flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 shadow-sm text-sm w-full md:w-auto max-w-full">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
+            <span className="font-medium whitespace-nowrap">Donate with Crypto:</span>
+          </div>
+          <span className="font-bold break-all text-center select-all text-xs md:text-sm leading-tight">
             TNhU6Hz9XCfLgAXzN1YZ7R8Zr9CQ1ijaCX
           </span>
         </div>
